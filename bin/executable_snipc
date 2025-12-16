@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+snippets "$@" | awk '{printf "%s", $0}' | copy

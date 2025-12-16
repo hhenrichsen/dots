@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e
+set -u
+
+port="${1:-8080}"
+directory="${2:-.}"
+
+if hash bun 2>/dev/null; then
+  echo "Serving $directory on http://localhost:$port (light-server)"
+  exec bun x light-server -s "$directory" -p "$port"
+else
+  echo "Serving $directory on http://localhost:$port (python)"
+  exec python3 -m http.server "$port" -d "$directory"
+fi

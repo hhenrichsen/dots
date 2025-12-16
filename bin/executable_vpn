@@ -1,0 +1,98 @@
+#!/bin/bash
+
+set -u
+set -o pipefail
+
+usage() {
+    echo "Usage: vpn on [country_code] | vpn off"
+    echo "  vpn on           - Connect using recommended exit node"
+    echo "  vpn on <code>    - Connect using exit node starting with <code> (e.g., 'at' for Austria)"
+    echo "  vpn off          - Disconnect from exit node"
+    exit 1
+}
+
+die() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+vpn_on() {
+    local code="${1:-}"
+    local exit_node
+    
+    if [[ -z "$code" ]]; then
+        # Use recommended exit node
+        echo "Getting recommended exit node..."
+        local suggest_output
+        if ! suggest_output=$(tailscale exit-node suggest 2>&1); then
+            echo "tailscale exit-node suggest failed:"
+            echo "$suggest_output"
+            die "Could not get exit node suggestion"
+        fi
+        
+        # Extract hostname from "Suggested exit node: <hostname>."
+        exit_node=$(echo "$suggest_output" | grep -oP '(?<=Suggested exit node: )\S+' | sed 's/\.$//' || true)
+        
+        if [[ -z "$exit_node" ]]; then
+            echo "Could not parse exit node from output:"
+            echo "$suggest_output"
+            die "Failed to extract exit node"
+        fi
+        echo "Recommended exit node: $exit_node"
+    else
+        # Find exit node by country code prefix
+        echo "Finding exit node starting with '$code'..."
+        local list_output
+        if ! list_output=$(tailscale exit-node list 2>&1); then
+            echo "tailscale exit-node list failed:"
+            echo "$list_output"
+            die "Could not list exit nodes"
+        fi
+        
+        # Find line where hostname starts with the code (e.g., at-xxx.mullvad.ts.net)
+        local match_line
+        match_line=$(echo "$list_output" | grep -E "^\s*[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\s+${code}-" | head -1 || true)
+        
+        if [[ -z "$match_line" ]]; then
+            echo "No exit node found with hostname starting with '$code-'"
+            echo "Available nodes:"
+            echo "$list_output"
+            exit 1
+        fi
+        
+        # Use hostname (column 2) for the exit node
+        exit_node=$(echo "$match_line" | awk '{print $2}')
+        echo "Found exit node: $exit_node"
+    fi
+    
+    # Use tailscale set to configure exit node
+    echo "Connecting to exit node $exit_node..."
+    if ! tailscale set --exit-node-allow-lan-access --exit-node="$exit_node"; then
+        die "Failed to connect to VPN"
+    fi
+    
+    echo "VPN connected via $exit_node"
+}
+
+vpn_off() {
+    echo "Disabling exit node..."
+    
+    if ! tailscale set --exit-node=; then
+        die "Failed to disconnect VPN"
+    fi
+    
+    echo "VPN disconnected"
+}
+
+# Main
+case "${1:-}" in
+    on)
+        vpn_on "${2:-}"
+        ;;
+    off)
+        vpn_off
+        ;;
+    *)
+        usage
+        ;;
+esac

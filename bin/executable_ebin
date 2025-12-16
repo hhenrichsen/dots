@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+e "$HOME/bin/$@"
+chmod +x "$HOME/bin/$@"

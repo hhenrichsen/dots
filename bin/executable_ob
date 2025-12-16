@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""CLI wrapper for Obsidian URL scheme."""
+
+import argparse
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
+
+VAULT = "Primary Notes"
+VAULT_PATH = Path.home() / VAULT
+FLEETING_FOLDER = "05 - Fleeting"
+
+
+def open_url(url: str):
+    """Open a URL using xdg-open."""
+    subprocess.run(["bb", "xdg-open", url], check=True)
+
+
+def build_url(action: str, **params) -> str:
+    """Build an Obsidian URL with the given action and parameters."""
+    parts = [f"obsidian://{action}?vault={quote(VAULT)}"]
+    for key, value in params.items():
+        if value is not None:
+            parts.append(f"&{key}={quote(str(value))}")
+    return "".join(parts)
+
+
+def get_fleeting_filename(title: str) -> str:
+    """Generate a fleeting note filename with timestamp."""
+    now_str = datetime.now().strftime("%Y%m%d%H%M")
+    title = title.strip().replace("/", "_").replace("\\", "_").replace(":", "-")
+    if not title:
+        return f"{now_str}.md"
+    return f"{now_str} - {title}.md"
+
+
+def cmd_search(args):
+    """Open Obsidian search."""
+    query = " ".join(args.query) if args.query else None
+    url = build_url("search", query=query)
+    open_url(url)
+
+
+def cmd_daily(args):
+    """Open or create daily note."""
+    url = build_url("daily")
+    open_url(url)
+
+
+def cmd_new(args):
+    """Create a new note."""
+    name = " ".join(args.name) if args.name else None
+    url = build_url("new", file=name)
+    open_url(url)
+
+
+def cmd_open(args):
+    """Open an existing note."""
+    file = " ".join(args.file)
+    url = build_url("open", file=file)
+    open_url(url)
+
+
+def cmd_fleeting(args):
+    """Create a fleeting note with timestamp filename."""
+    title = " ".join(args.title) if args.title else ""
+    filename = get_fleeting_filename(title)
+    filepath = f"{FLEETING_FOLDER}/{filename}"
+    url = build_url("new", file=filepath)
+    open_url(url)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="CLI wrapper for Obsidian URL scheme",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  ob s credit card            Search for "credit card"
+  ob d                        Open today's daily note
+  ob n "Meeting Notes"        Create a new note called "Meeting Notes"
+  ob o "My Note"              Open an existing note
+  ob f Quick thought          Create a timestamped fleeting note
+""",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # search
+    p_search = subparsers.add_parser("search", aliases=["s"], help="Open Obsidian search")
+    p_search.add_argument("query", nargs="*", help="Search query")
+    p_search.set_defaults(func=cmd_search)
+
+    # daily
+    p_daily = subparsers.add_parser("daily", aliases=["d"], help="Open or create daily note")
+    p_daily.set_defaults(func=cmd_daily)
+
+    # new
+    p_new = subparsers.add_parser("new", aliases=["n"], help="Create a new note")
+    p_new.add_argument("name", nargs="*", help="Note name")
+    p_new.set_defaults(func=cmd_new)
+
+    # open
+    p_open = subparsers.add_parser("open", aliases=["o"], help="Open an existing note")
+    p_open.add_argument("file", nargs="+", help="File to open")
+    p_open.set_defaults(func=cmd_open)
+
+    # fleeting
+    p_fleeting = subparsers.add_parser(
+        "fleeting", aliases=["f"], help="Create a timestamped fleeting note"
+    )
+    p_fleeting.add_argument("title", nargs="*", help="Note title")
+    p_fleeting.set_defaults(func=cmd_fleeting)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
+

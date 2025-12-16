@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""URL decode input."""
+
+import sys
+from urllib.parse import unquote_plus
+
+if len(sys.argv) > 1:
+    text = ' '.join(sys.argv[1:])
+else:
+    text = sys.stdin.read().rstrip('\n')
+
+print(unquote_plus(text))
+

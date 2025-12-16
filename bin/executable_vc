@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Convert variable names between different cases."""
+
+import argparse
+import re
+import sys
+
+
+def split_words(name: str) -> list[str]:
+    """Split a variable name into words regardless of its current case."""
+    # Replace - and _ with spaces
+    name = name.replace('-', ' ').replace('_', ' ')
+    
+    # Split on camelCase boundaries (lowercase followed by uppercase)
+    # Also handle consecutive capitals like "XMLParser" -> "XML Parser"
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', name)
+    
+    # Split and filter empty strings
+    return [w for w in name.split() if w]
+
+
+def to_camel(words: list[str], modifier: str) -> str:
+    """Convert words to camelCase variants."""
+    if not words:
+        return ""
+    if modifier == 'lower':
+        return words[0].lower() + ''.join(w.capitalize() for w in words[1:])
+    elif modifier == 'upper':
+        return ''.join(w.capitalize() for w in words)
+    else:  # shouting
+        return ''.join(w.upper() for w in words)
+
+
+def to_pascal(words: list[str], modifier: str) -> str:
+    """Convert words to PascalCase variants."""
+    if not words:
+        return ""
+    if modifier == 'shouting':
+        return ''.join(w.upper() for w in words)
+    else:
+        return ''.join(w.capitalize() for w in words)
+
+
+def to_snake(words: list[str], modifier: str) -> str:
+    """Convert words to snake_case variants."""
+    if not words:
+        return ""
+    if modifier == 'lower':
+        return '_'.join(w.lower() for w in words)
+    elif modifier == 'upper':
+        return '_'.join(w.capitalize() for w in words)
+    else:  # shouting
+        return '_'.join(w.upper() for w in words)
+
+
+def to_kebab(words: list[str], modifier: str) -> str:
+    """Convert words to kebab-case variants."""
+    if not words:
+        return ""
+    if modifier == 'lower':
+        return '-'.join(w.lower() for w in words)
+    elif modifier == 'upper':
+        return '-'.join(w.capitalize() for w in words)
+    else:  # shouting
+        return '-'.join(w.upper() for w in words)
+
+
+def convert(words: list[str], case: str, modifier: str) -> str:
+    """Convert words to the specified case."""
+    converters = {
+        'camel': to_camel,
+        'c': to_camel,
+        'pascal': to_pascal,
+        'p': to_pascal,
+        'snake': to_snake,
+        's': to_snake,
+        'kebab': to_kebab,
+        'k': to_kebab,
+    }
+    return converters[case](words, modifier)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Convert variable names between different cases.',
+        epilog='Examples:\n'
+               '  vc s someVariableName      -> some_variable_name\n'
+               '  vc c my variable name      -> myVariableName\n'
+               '  vc s -u my_var             -> My_Var\n'
+               '  vc s -s myVar              -> MY_VAR\n'
+               '  vc p my variable name      -> MyVariableName\n'
+               '  echo "myVar" | vc s        -> my_var',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('case', choices=['camel', 'c', 'pascal', 'p', 'snake', 's', 'kebab', 'k'],
+                        help='Target case: camel (c), pascal (p), snake (s), or kebab (k)')
+    parser.add_argument('words', nargs='*',
+                        help='Words or variable name to convert (or pipe via stdin)')
+    
+    modifier_group = parser.add_mutually_exclusive_group()
+    modifier_group.add_argument('-l', '--lower', action='store_true',
+                                help='Lower case (default)')
+    modifier_group.add_argument('-u', '--upper', action='store_true',
+                                help='Upper case (capitalize each word)')
+    modifier_group.add_argument('-s', '--shouting', action='store_true',
+                                help='SHOUTING CASE (all caps)')
+    
+    args = parser.parse_args()
+    
+    # Get input from arguments or stdin
+    if args.words:
+        input_parts = args.words
+    elif not sys.stdin.isatty():
+        input_parts = sys.stdin.read().split()
+    else:
+        parser.error('input is required (as arguments or via stdin)')
+    
+    # Split each input part into words (handles camelCase, snake_case, etc.)
+    # then flatten into a single list of words
+    words = []
+    for part in input_parts:
+        words.extend(split_words(part))
+    
+    # Determine modifier
+    if args.upper:
+        modifier = 'upper'
+    elif args.shouting:
+        modifier = 'shouting'
+    else:
+        modifier = 'lower'
+    
+    print(convert(words, args.case, modifier))
+
+
+if __name__ == '__main__':
+    main()
+

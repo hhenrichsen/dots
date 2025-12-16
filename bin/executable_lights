@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+LIGHTS=(
+    "192.168.1.210"
+    "192.168.1.212"
+)
+PORT=9123
+
+usage() {
+    echo "Usage: lights <target> <command> [value]"
+    echo ""
+    echo "Targets:"
+    echo "  all     - All lights"
+    echo "  1, 2    - Specific light"
+    echo ""
+    echo "Commands:"
+    echo "  on              - Turn light(s) on"
+    echo "  off             - Turn light(s) off"
+    echo "  brightness <n>  - Set brightness (1-100 or +/-N)"
+    echo "  temperature <n> - Set temperature (1=cool, 100=warm, or +/-N)"
+    echo ""
+    echo "Examples:"
+    echo "  lights all on"
+    echo "  lights 1 off"
+    echo "  lights 2 brightness 50"
+    echo "  lights all temperature 75"
+    exit 1
+}
+
+send_command() {
+    local ip=$1
+    local json=$2
+    curl -s --location --request PUT "http://${ip}:${PORT}/elgato/lights" \
+        --header 'Content-Type: application/json' \
+        --data "$json" > /dev/null
+}
+
+get_current_state() {
+    local ip=$1
+    curl -s --location --request GET "http://${ip}:${PORT}/elgato/lights"
+}
+
+map_temperature() {
+    local input=$1
+    local min_temp=143
+    local max_temp=344
+    echo $(( min_temp + (max_temp - min_temp) * input / 100 ))
+}
+
+unmap_temperature() {
+    local raw=$1
+    local min_temp=143
+    local max_temp=344
+    echo $(( (raw - min_temp) * 100 / (max_temp - min_temp) ))
+}
+
+build_json() {
+    local field=$1
+    local value=$2
+    echo "{\"numberOfLights\":1,\"lights\":[{\"${field}\":${value}}]}"
+}
+
+get_current_value() {
+    local ip=$1
+    local field=$2
+    local state
+    state=$(get_current_state "$ip")
+    echo "$state" | grep -o "\"${field}\":[0-9]*" | head -1 | cut -d: -f2
+}
+
+clamp() {
+    local val=$1
+    local min=$2
+    local max=$3
+    (( val < min )) && val=$min
+    (( val > max )) && val=$max
+    echo "$val"
+}
+
+is_relative() {
+    [[ $1 =~ ^[+-][0-9]+$ ]]
+}
+
+[[ $# -lt 2 ]] && usage
+
+target=$1
+command=$2
+value=$3
+
+case $target in
+    all)
+        indices=(0 1)
+        ;;
+    1)
+        indices=(0)
+        ;;
+    2)
+        indices=(1)
+        ;;
+    *)
+        echo "Error: Invalid target '$target'"
+        usage
+        ;;
+esac
+
+case $command in
+    on)
+        for i in "${indices[@]}"; do
+            json=$(build_json "on" 1)
+            send_command "${LIGHTS[$i]}" "$json"
+        done
+        ;;
+    off)
+        for i in "${indices[@]}"; do
+            json=$(build_json "on" 0)
+            send_command "${LIGHTS[$i]}" "$json"
+        done
+        ;;
+    brightness)
+        [[ -z $value ]] && { echo "Error: brightness requires a value (1-100 or +/-N)"; exit 1; }
+        for i in "${indices[@]}"; do
+            if is_relative "$value"; then
+                current=$(get_current_value "${LIGHTS[$i]}" "brightness")
+                new_val=$(( current + value ))
+                new_val=$(clamp "$new_val" 1 100)
+            else
+                [[ $value -lt 1 || $value -gt 100 ]] && { echo "Error: brightness must be 1-100"; exit 1; }
+                new_val=$value
+            fi
+            json=$(build_json "brightness" "$new_val")
+            send_command "${LIGHTS[$i]}" "$json"
+        done
+        ;;
+    temperature)
+        [[ -z $value ]] && { echo "Error: temperature requires a value (1-100 or +/-N)"; exit 1; }
+        for i in "${indices[@]}"; do
+            if is_relative "$value"; then
+                raw_temp=$(get_current_value "${LIGHTS[$i]}" "temperature")
+                current=$(unmap_temperature "$raw_temp")
+                new_val=$(( current + value ))
+                new_val=$(clamp "$new_val" 1 100)
+            else
+                [[ $value -lt 1 || $value -gt 100 ]] && { echo "Error: temperature must be 1-100"; exit 1; }
+                new_val=$value
+            fi
+            mapped=$(map_temperature "$new_val")
+            json=$(build_json "temperature" "$mapped")
+            send_command "${LIGHTS[$i]}" "$json"
+        done
+        ;;
+    *)
+        echo "Error: Unknown command '$command'"
+        usage
+        ;;
+esac
