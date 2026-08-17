@@ -1,0 +1,181 @@
+[user]
+	email = hunter.henrichsen@gmail.com
+	name = Hunter Henrichsen
+[pull]
+	rebase = true
+[push]
+	autoSetupRemote = true
+[alias]
+		# Get the current branch name
+	current-branch = branch --show-current
+
+	# I can never remember how to unstage stuff, so I change it to a name I can remember
+	unstage = restore --staged --
+
+	# Sets some default parameters that I use all the time
+	rb = rebase --interactive --autosquash
+
+	# Push, but be careful of other changes that exist
+	pf = push --force-with-lease
+
+	# Alias for a shorter fixup commit on a given hash.
+	fixup = !git commit --fixup=$1 && :
+
+	# Alias for adding all files and doing a fixup commit on the given hash.
+	fixup-all = !git commit --fixup=$1 --all && :
+
+	# Update a branch without checking it out
+	update = !git fetch origin "$1":"$1" && :
+
+	# Forces a branch back to its state on the origin remote.
+	origin-hard = !git reset origin/$(git current-branch) --hard && :
+
+	# Create a temporary stash with a reasonable name
+	stash-temp = !git stash push -m "tmp-$(git branch --show-current)-$(date +'%Y-%m-%d')" --include-untracked --
+
+	# Forces a branch back to its state on the origin remote, saving any changes in a stash.
+	origin-stash = !git reset origin/$(git branch --show-current) --soft && git stash-temp && :
+
+	# Creates a temp branch of the current branch
+	branch-temp = "!git branch -D \"$(git branch --show-current)-tmp\"; git checkout -b \"$(git branch --show-current)-tmp\" && :"
+
+	# Create a new branch, defaulting to master
+	#
+	# Params:
+	#   1. Branch Name
+	#   2. Target Branch
+	#
+	# Usage: git new-user-branch <Branch Name> [Target Branch]
+	new-branch = !git stash-temp && \
+		git update "${2:-master}" && \
+		git checkout -b $1 "${2:-master}" && \
+		:
+
+	# Create a new branch starting with a username, defaulting to master
+	#
+	# Params:
+	#   1. Branch Name.
+	#   2. Target Branch. Defaults to master.
+	#
+	# Usage: git new-user-branch <Branch Name> [Target Branch]
+	new-user-branch = !git stash-temp && \
+		git update master && \
+		git pull && git checkout -b \"$USER-$1\" "${2:-master}" && \
+		:
+
+	# Finds a branch based on a part of its name.
+	partial-branch = !git for-each-ref --format='%(refname:short)' refs/heads/** | grep $1 && :
+
+	# Swaps to another branch, stashing any changes. Works with partial branch names.
+	#
+	# Params:
+	#   1. Starting branch search. Optional.
+	switch-branch = !git stash-temp && \
+		git checkout $(git partial-branch $1) && \
+		:
+
+	# Find the oldest common commit between two branches.
+	# Defaults to master for the first branch and the current branch to the second
+	#
+	# Params:
+	#   1. First branch. Defaults to master.
+	#   2. Second branch. Defaults to the current branch.
+	#
+	# Usage: git oldest-ancestor [First Branch] [Second Branch]
+	#
+	# From https://stackoverflow.com/a/4991675
+	oldest-ancestor = !bash -c 'diff --old-line-format='' --new-line-format='' \
+		<(git rev-list --first-parent "${1:-master}") \
+		<(git rev-list --first-parent "${2:-HEAD}") \
+		| head -1' -
+
+        recents = !git reflog show --pretty=format:'%gs ~ %gd' --date=relative | grep 'checkout:' | grep -oE '[^ ]+ ~ .*' | awk -F~ '!seen[$1]++' | head -n 10 | awk -F ' ~ HEAD@{' '{printf(\"  \\033[33m%14s: \\033[37m %s\\033[0m\\n\", substr($2, 1, length($2)-1), $1)}' | fzf --ansi --bind 'enter:execute(git checkout {-1})+abort'
+	# Changes the base of the current branch.
+	# Default to changing from master to master-stable.
+	#
+	# Params:
+	#   1. Source Branch; the branch on which the current branch is based.
+	#   2. Target branch; the branch on which the current branch should be based.
+	#
+	# Usage: git change-base [Source Branch] [Target Branch]
+	change-base = !git update "${1:-master}" && \
+		git update "${2:-master-stable}" && \
+		git pull --rebase origin "${1:-master}" && \
+		git rebase --onto "${2:-master-stable}" "${1:-master}" && :
+
+	# Explicit version of the above.
+	stabilize = change-base master master-stable
+
+	# Rebases the current branch to its shared root with the given branch. Should be used with the branch on which
+	# this branch is based.
+	#
+	# Params:
+	#   1. Parent Branch. Defaults to master.
+	#
+	# Usage: git auto-rebase [Parent Branch]
+	auto-rebase = !git update "${1:-master}" && \
+		git pull --rebase origin "${1:-master}" && \
+		git rb "$(git oldest-ancestor \"${1:-master}\")" && \
+		:
+
+	auto-rebase-format = !git update "${1:-master}" && \
+		git pull --rebase origin "${1:-master}" && \
+		git rebase --exec 'git format-last' "$(git oldest-ancestor \"${1:-master}\")" && \
+		:
+
+	# Shorter alias for the above.
+	auto-rebase-stable = !git auto-rebase master-stable
+	auto-rebase-format-stable = !git auto-rebase-format master-stable
+
+	# Does the same as auto-rebase, but does so without updating any remote branches.
+	auto-rebase-nopull = !git rb $(git oldest-ancestor) && :
+
+	# Lists files changed in a commit
+	changes-in = !git --no-pager show --stat --oneline --name-only $1 | tail -n +2 && :
+
+	# Does a fixup commit on files already changed in a commit.
+	fixup-existing = !git changed-files $1 | xargs -d \"\\n\" git add && git commit --fixup $1 && :
+
+	# https://stackoverflow.com/questions/3161204/how-to-find-the-nearest-parent-of-a-git-branch
+	parent = "!git show-branch | grep '*' | grep -v \"$(git rev-parse --abbrev-ref HEAD)\" | head -n1 | sed 's/.*\\[\\(.*\\)\\].*/\\1/' | sed 's/[\\^~].*//' #"
+
+	fuzzy-branch = !git checkout $(git branch | fzf | tr -d '[:space:]')
+	format = "!bazel format --diff && :"
+	format-last = "!f() { NAME=`git log -1 --pretty=%B` && git reset --soft HEAD^ && git format && git add . && git commit -m \"$NAME\"; }; f"
+
+	# Shorthand
+	arb = auto-rebase
+	arf = auto-rebase-format
+	arbnp = auto-rebase-nopull
+	arbs = auto-rebase-stable
+	arfs = auto-rebase-format-stable
+	c = commit
+	cb = current-branch
+	co = checkout
+	coe = !git checkout $(git fb $1) && :
+	fx = fixup
+	fxa = fixup-all
+	fxe = fixup-existing
+	mm = pull --rebase origin master
+	nb = new-branch
+	nub = new-user-branch
+	oh = origin-hard
+	pb = partial-branch
+	rbc = rebase --continue
+	rc = rebase --continue
+	s = status
+	sb = switch-branch
+	sbt = switch-branch-temp
+	st = stash-temp
+	stb = stabilize
+	us = unswitch
+	rbc = rebase --continue
+	cpc = cherry-pick --continue
+	cane = commit --amend --no-edit
+	canepf = !git commit --amend --no-edit && git push --force-with-lease && :
+	canea = commit --amend --no-edit --all
+	caneapf = !git commit --amend --no-edit && git push --force-with-lease && :
+	cob = checkout -b
+	ct = !git add . && git commit -m \"nomerge! tmp\" && :
+	rsh = reset --soft HEAD^
+	siu = stash --include-untracked
