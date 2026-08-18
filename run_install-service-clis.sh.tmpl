@@ -4,6 +4,10 @@ set -euo pipefail
 
 export PATH="$HOME/.local/bin:$HOME/.fly/bin:$PATH"
 
+if [ ! -x "$HOME/.local/bin/claude" ]; then
+    curl -fsSL https://claude.ai/install.sh | bash
+fi
+
 if ! command -v fly >/dev/null 2>&1 && ! command -v flyctl >/dev/null 2>&1; then
     curl -fsSL https://fly.io/install.sh | sh
 fi

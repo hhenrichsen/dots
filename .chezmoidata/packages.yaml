@@ -64,6 +64,7 @@ packages:
     bun: latest
     deno: latest
     go: latest
+    "github:anomalyco/opencode": latest
     neovim: latest
     node: lts
     pnpm: latest
@@ -71,7 +72,5 @@ packages:
     rust: stable
 
   npm:
-    - "@anthropic-ai/claude-code"
     - "@openai/codex"
     - obsidian-headless
-    - opencode-ai
