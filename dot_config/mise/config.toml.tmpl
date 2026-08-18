@@ -1,0 +1,7 @@
+[tools]
+{{- range $tool, $version := .packages.mise }}
+{{ $tool | quote }} = {{ $version | quote }}
+{{- end }}
+{{- range .packages.npm }}
+{{ printf "npm:%s" . | quote }} = "latest"
+{{- end }}

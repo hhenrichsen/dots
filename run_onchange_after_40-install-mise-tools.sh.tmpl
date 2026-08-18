@@ -1,0 +1,14 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
+#!/bin/sh
+set -eu
+
+mise_bin="$HOME/.local/bin/mise"
+if [ ! -x "$mise_bin" ]; then
+    mise_bin="$(command -v mise)"
+fi
+
+# The rendered inventory makes this run_onchange script follow package data.
+# mise tools:{{ range $tool, $version := .packages.mise }} {{ $tool }}@{{ $version }}{{ end }}
+# npm tools:{{ range .packages.npm }} {{ . }}{{ end }}
+"$mise_bin" install
+{{- end }}

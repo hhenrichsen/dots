@@ -1,0 +1,56 @@
+packages:
+  bootstrap:
+    arch:
+      - base-devel
+      - ca-certificates
+      - curl
+      - file
+      - git
+      - procps-ng
+    debian:
+      - build-essential
+      - ca-certificates
+      - curl
+      - file
+      - git
+      - procps
+    fedora:
+      - ca-certificates
+      - curl
+      - file
+      - gcc
+      - gcc-c++
+      - git
+      - make
+      - procps-ng
+
+  brew:
+    - age
+    - aichat
+    - bat
+    - eza
+    - ffmpeg
+    - fish
+    - fzf
+    - gallery-dl
+    - httpie
+    - thefuck
+    - tmux
+    - yt-dlp
+    - zoxide
+
+  mise:
+    bun: latest
+    deno: latest
+    go: latest
+    neovim: latest
+    node: lts
+    pnpm: latest
+    python: latest
+    rust: stable
+
+  npm:
+    - "@anthropic-ai/claude-code"
+    - "@openai/codex"
+    - obsidian-headless
+    - opencode-ai

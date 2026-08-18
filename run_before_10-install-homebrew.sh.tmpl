@@ -1,0 +1,14 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
+#!/bin/sh
+set -eu
+
+if command -v brew >/dev/null 2>&1 \
+    || [ -x /opt/homebrew/bin/brew ] \
+    || [ -x /usr/local/bin/brew ] \
+    || [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+    exit 0
+fi
+
+NONINTERACTIVE=1 /bin/bash -c \
+    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+{{- end }}

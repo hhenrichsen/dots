@@ -1,0 +1,31 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
+#!/bin/bash
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$HOME/.fly/bin:$PATH"
+
+if ! command -v fly >/dev/null 2>&1 && ! command -v flyctl >/dev/null 2>&1; then
+    curl -fsSL https://fly.io/install.sh | sh
+fi
+
+if ! command -v sprite >/dev/null 2>&1 && ! command -v sprites >/dev/null 2>&1; then
+    curl -fsSL https://sprites.dev/install.sh | bash
+fi
+
+{{- if eq .chezmoi.os "linux" }}
+if ! command -v tailscale >/dev/null 2>&1; then
+    curl -fsSL https://tailscale.com/install.sh | sh
+fi
+{{- else }}
+# On macOS, use the supported Homebrew cask instead of Tailscale's Linux installer.
+if ! command -v tailscale >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+        brew install --cask tailscale
+    elif [ -x /opt/homebrew/bin/brew ]; then
+        /opt/homebrew/bin/brew install --cask tailscale
+    else
+        /usr/local/bin/brew install --cask tailscale
+    fi
+fi
+{{- end }}
+{{- end }}

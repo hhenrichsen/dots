@@ -1,0 +1,51 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/bin/sh
+set -eu
+
+if command -v apt-get >/dev/null 2>&1; then
+    missing=""
+{{- range .packages.bootstrap.debian }}
+    if ! dpkg-query -W -f='${Status}' {{ . | quote }} 2>/dev/null | grep -q 'install ok installed'; then
+        missing="$missing {{ . }}"
+    fi
+{{- end }}
+    if [ -n "$missing" ]; then
+        sudo apt-get update
+        # shellcheck disable=SC2086
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $missing
+    fi
+elif command -v dnf >/dev/null 2>&1; then
+    missing=""
+{{- range .packages.bootstrap.fedora }}
+    if ! rpm -q {{ . | quote }} >/dev/null 2>&1; then
+        missing="$missing {{ . }}"
+    fi
+{{- end }}
+    if [ -n "$missing" ]; then
+        # shellcheck disable=SC2086
+        sudo dnf install -y $missing
+    fi
+elif command -v pacman >/dev/null 2>&1; then
+    missing=""
+{{- range .packages.bootstrap.arch }}
+    if ! pacman -Q {{ . | quote }} >/dev/null 2>&1; then
+        missing="$missing {{ . }}"
+    fi
+{{- end }}
+    if [ -n "$missing" ]; then
+        # shellcheck disable=SC2086
+        sudo pacman -S --needed --noconfirm $missing
+    fi
+else
+    echo "Unsupported Linux package manager; install curl, git, a compiler, and build tools manually." >&2
+    exit 1
+fi
+{{- else if eq .chezmoi.os "darwin" -}}
+#!/bin/sh
+set -eu
+
+if ! xcode-select -p >/dev/null 2>&1; then
+    echo "Xcode Command Line Tools are required. Run 'xcode-select --install', then re-run chezmoi apply." >&2
+    exit 1
+fi
+{{- end }}

@@ -1,0 +1,23 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
+#!/bin/bash
+set -euo pipefail
+
+if command -v brew >/dev/null 2>&1; then
+    brew_bin="$(command -v brew)"
+elif [[ -x /opt/homebrew/bin/brew ]]; then
+    brew_bin=/opt/homebrew/bin/brew
+elif [[ -x /usr/local/bin/brew ]]; then
+    brew_bin=/usr/local/bin/brew
+elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    brew_bin=/home/linuxbrew/.linuxbrew/bin/brew
+else
+    echo "Homebrew was not found after bootstrap." >&2
+    exit 1
+fi
+
+"$brew_bin" bundle --file=/dev/stdin <<'BREWFILE'
+{{- range .packages.brew }}
+brew {{ . | quote }}
+{{- end }}
+BREWFILE
+{{- end }}
