@@ -1,7 +1,8 @@
 encryption = "age"
 
 [age]
-    passphrase = true
+    identity = "~/.config/chezmoi/age-identity.txt"
+    recipientsFile = "~/.config/chezmoi/age-recipient.txt"
 
 [hooks.read-source-state.pre]
     command = ".local/share/chezmoi/.install-password-manager.sh"

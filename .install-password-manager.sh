@@ -1,12 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# This hook runs before chezmoi reads and renders its source state. Keep the
-# already-installed path fast because it executes for every source-state read.
-if command -v op >/dev/null 2>&1; then
-    exit 0
-fi
-
+# This hook runs before chezmoi reads and renders its source state. Install the
+# 1Password CLI first, then materialize the age key files if they are absent.
+if ! command -v op >/dev/null 2>&1; then
 case "$(uname -s)" in
 Darwin)
     if command -v brew >/dev/null 2>&1; then
@@ -77,3 +74,37 @@ Linux)
     exit 1
     ;;
 esac
+fi
+
+key_dir="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi"
+identity_file="$key_dir/age-identity.txt"
+recipient_file="$key_dir/age-recipient.txt"
+
+# Keep the common path fast. Delete either file to fetch a rotated value.
+if [[ -s "$identity_file" && -s "$recipient_file" ]]; then
+    exit 0
+fi
+
+install -d -m 0700 "$key_dir"
+
+identity_tmp="$(mktemp "$key_dir/.age-identity.XXXXXX")"
+recipient_tmp="$(mktemp "$key_dir/.age-recipient.XXXXXX")"
+trap 'rm -f "$identity_tmp" "$recipient_tmp"' EXIT
+chmod 0600 "$identity_tmp" "$recipient_tmp"
+
+op read 'op://Personal/chezmoi-age-identity/age-identity.txt' > "$identity_tmp"
+op read 'op://Personal/chezmoi-age-identity/recipient' > "$recipient_tmp"
+
+if ! grep -q '^AGE-SECRET-KEY-' "$identity_tmp"; then
+    echo "The 1Password age identity does not contain an AGE-SECRET-KEY entry." >&2
+    exit 1
+fi
+
+if ! grep -Eq '^age1[0-9a-z]+$' "$recipient_tmp"; then
+    echo "The 1Password age recipient is not a valid age1 recipient." >&2
+    exit 1
+fi
+
+mv "$identity_tmp" "$identity_file"
+mv "$recipient_tmp" "$recipient_file"
+trap - EXIT
