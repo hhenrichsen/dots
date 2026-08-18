@@ -29,13 +29,33 @@ packages:
     - aichat
     - bat
     - eza
+    - fd
     - ffmpeg
     - fish
     - fzf
     - gallery-dl
+    - gh
+    - git-delta
+    - htmlq
     - httpie
+    - pv
+    - imagemagick
+    - jless
+    - jq
+    - jc
+    - jid
+    - just
+    - libqalculate
+    - mosh
+    - ncdu
+    - numbat
+    - pandoc
     - thefuck
+    - tldr
     - tmux
+    - uv
+    - vips
+    - yq
     - yt-dlp
     - zoxide
 

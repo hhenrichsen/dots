@@ -42,5 +42,13 @@ if status is-interactive # Commands to run in interactive sessions can go here
         end
         return $last
     end
+
+    function =
+        if count $argv > /dev/null
+            numbat -e "$argv"
+        else
+            numbat
+        end
+    end
 end
 
