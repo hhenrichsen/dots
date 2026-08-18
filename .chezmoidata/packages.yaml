@@ -45,12 +45,12 @@ packages:
     - jc
     - jid
     - just
-    - libqalculate
     - miller
     - mosh
     - ncdu
     - numbat
     - pandoc
+    - qalculate-qt
     - thefuck
     - tldr
     - tmux
