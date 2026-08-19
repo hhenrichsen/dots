@@ -67,10 +67,10 @@ packages:
     "github:anomalyco/opencode": latest
     neovim: latest
     node: lts
-    pnpm: latest
     python: latest
     rust: stable
 
   npm:
     - "@openai/codex"
     - obsidian-headless
+    - pnpm
