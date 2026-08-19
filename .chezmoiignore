@@ -1,0 +1,6 @@
+{{ if not (stat (joinPath .chezmoi.homeDir ".config" "chezmoi" "age-identity.txt")) }}
+.skills
+.skills/**
+.config/aichat/config.yaml
+.local/share/opencode/auth.json
+{{ end }}

@@ -1,6 +1,13 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
 #!/bin/sh
-set -eu
+set -u
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 if command -v brew >/dev/null 2>&1 \
     || [ -x /opt/homebrew/bin/brew ] \
@@ -10,5 +17,6 @@ if command -v brew >/dev/null 2>&1 \
 fi
 
 NONINTERACTIVE=1 /bin/bash -c \
-    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+    || { note_failure "Homebrew install"; exit 0; }
 {{- end }}

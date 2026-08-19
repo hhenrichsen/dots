@@ -1,6 +1,13 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 if command -v brew >/dev/null 2>&1; then
     brew_bin="$(command -v brew)"
@@ -11,13 +18,14 @@ elif [[ -x /usr/local/bin/brew ]]; then
 elif [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
     brew_bin=/home/linuxbrew/.linuxbrew/bin/brew
 else
-    echo "Homebrew was not found after bootstrap." >&2
-    exit 1
+    note_failure "brew packages: Homebrew is not available"
+    exit 0
 fi
 
-"$brew_bin" bundle --file=/dev/stdin <<'BREWFILE'
+"$brew_bin" bundle --file=/dev/stdin <<'BREWFILE' || note_failure "brew bundle: some formulae failed"
 {{- range .packages.brew }}
 brew {{ . | quote }}
 {{- end }}
 BREWFILE
+exit 0
 {{- end }}

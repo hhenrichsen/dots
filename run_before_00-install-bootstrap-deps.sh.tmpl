@@ -1,6 +1,13 @@
 {{- if eq .chezmoi.os "linux" -}}
 #!/bin/sh
-set -eu
+set -u
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 if command -v apt-get >/dev/null 2>&1; then
     missing=""
@@ -10,9 +17,9 @@ if command -v apt-get >/dev/null 2>&1; then
     fi
 {{- end }}
     if [ -n "$missing" ]; then
-        sudo apt-get update
         # shellcheck disable=SC2086
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $missing
+        { sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $missing; } \
+            || note_failure "bootstrap packages (apt-get/dnf/pacman)"
     fi
 elif command -v dnf >/dev/null 2>&1; then
     missing=""
@@ -23,7 +30,7 @@ elif command -v dnf >/dev/null 2>&1; then
 {{- end }}
     if [ -n "$missing" ]; then
         # shellcheck disable=SC2086
-        sudo dnf install -y $missing
+        sudo dnf install -y $missing || note_failure "bootstrap packages (apt-get/dnf/pacman)"
     fi
 elif command -v pacman >/dev/null 2>&1; then
     missing=""
@@ -34,18 +41,25 @@ elif command -v pacman >/dev/null 2>&1; then
 {{- end }}
     if [ -n "$missing" ]; then
         # shellcheck disable=SC2086
-        sudo pacman -S --needed --noconfirm $missing
+        sudo pacman -S --needed --noconfirm $missing || note_failure "bootstrap packages (apt-get/dnf/pacman)"
     fi
 else
-    echo "Unsupported Linux package manager; install curl, git, a compiler, and build tools manually." >&2
-    exit 1
+    note_failure "bootstrap packages: unsupported Linux package manager; install curl, git, a compiler, and build tools manually"
 fi
+exit 0
 {{- else if eq .chezmoi.os "darwin" -}}
 #!/bin/sh
-set -eu
+set -u
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 if ! xcode-select -p >/dev/null 2>&1; then
-    echo "Xcode Command Line Tools are required. Run 'xcode-select --install', then re-run chezmoi apply." >&2
-    exit 1
+    note_failure "Xcode Command Line Tools are missing; run 'xcode-select --install'"
 fi
+exit 0
 {{- end }}

@@ -1,0 +1,14 @@
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
+#!/bin/sh
+set -u
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+if [ -s "$failures_log" ]; then
+    {
+        echo "Some setup steps failed:"
+        sed 's/^/    /' "$failures_log"
+        echo "Fix the cause, then run: chezmoi state delete-bucket --bucket=scriptState && chezmoi apply"
+    } >&2
+fi
+exit 0
+{{- end }}

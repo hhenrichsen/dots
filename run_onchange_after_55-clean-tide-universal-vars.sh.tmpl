@@ -1,6 +1,13 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
 #!/bin/sh
-set -eu
+set -u
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 # tide config: {{ include "dot_config/fish/conf.d/00_tide_config.fish" | sha256sum }}
 if command -v fish >/dev/null 2>&1; then
@@ -15,8 +22,8 @@ else
 fi
 
 if [ -z "${fish_bin:-}" ]; then
-    echo "fish was not found after package installation." >&2
-    exit 1
+    note_failure "tide cleanup: fish is not available"
+    exit 0
 fi
 
 "$fish_bin" -c '
@@ -25,5 +32,6 @@ fi
             set --erase --universal $name
         end
     end
-'
+' || note_failure "tide cleanup: fish -c cleanup failed"
+exit 0
 {{- end }}

@@ -1,37 +1,45 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 export PATH="$HOME/.local/bin:$HOME/.fly/bin:$PATH"
 
 if [ ! -x "$HOME/.local/bin/claude" ]; then
-    curl -fsSL https://claude.ai/install.sh | bash
+    curl -fsSL https://claude.ai/install.sh | bash || note_failure "claude CLI install"
 fi
 
 if ! command -v fly >/dev/null 2>&1 && ! command -v flyctl >/dev/null 2>&1; then
-    curl -fsSL https://fly.io/install.sh | sh
+    curl -fsSL https://fly.io/install.sh | sh || note_failure "flyctl install"
 fi
 
 {{- if eq .chezmoi.os "linux" }}
 if ! command -v sprite >/dev/null 2>&1 && ! command -v sprites >/dev/null 2>&1; then
-    curl -fsSL https://sprites.dev/install.sh | bash
+    curl -fsSL https://sprites.dev/install.sh | bash || note_failure "sprites install"
 fi
 {{- end }}
 
 {{- if eq .chezmoi.os "linux" }}
 if ! command -v tailscale >/dev/null 2>&1; then
-    curl -fsSL https://tailscale.com/install.sh | sh
+    curl -fsSL https://tailscale.com/install.sh | sh || note_failure "tailscale install"
 fi
 {{- else }}
 # On macOS, use the supported Homebrew cask instead of Tailscale's Linux installer.
 if ! command -v tailscale >/dev/null 2>&1; then
     if command -v brew >/dev/null 2>&1; then
-        brew install --cask tailscale
+        brew install --cask tailscale || note_failure "tailscale install"
     elif [ -x /opt/homebrew/bin/brew ]; then
-        /opt/homebrew/bin/brew install --cask tailscale
+        /opt/homebrew/bin/brew install --cask tailscale || note_failure "tailscale install"
     else
-        /usr/local/bin/brew install --cask tailscale
+        /usr/local/bin/brew install --cask tailscale || note_failure "tailscale install"
     fi
 fi
 {{- end }}
+exit 0
 {{- end }}

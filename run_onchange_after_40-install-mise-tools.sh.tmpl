@@ -1,14 +1,26 @@
 {{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "darwin") -}}
 #!/bin/sh
-set -eu
+set -u
+
+failures_log="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/setup-failures.log"
+note_failure() {
+    mkdir -p "${failures_log%/*}"
+    printf '%s\n' "$1" >>"$failures_log"
+    printf 'WARN: %s (continuing)\n' "$1" >&2
+}
 
 mise_bin="$HOME/.local/bin/mise"
 if [ ! -x "$mise_bin" ]; then
     mise_bin="$(command -v mise)"
 fi
+if [ -z "$mise_bin" ]; then
+    note_failure "mise tools: mise is not installed"
+    exit 0
+fi
 
-# The rendered inventory makes this run_onchange script follow package data.
-# mise tools:{{ range $tool, $version := .packages.mise }} {{ $tool }}@{{ $version }}{{ end }}
-# npm tools:{{ range .packages.npm }} {{ . }}{{ end }}
-"$mise_bin" install
+try_tool() { "$mise_bin" install "$1" || note_failure "mise install $1"; }
+{{ range $tool, $version := .packages.mise }}try_tool {{ printf "%s@%s" $tool $version | quote }}
+{{ end }}{{ range .packages.npm }}try_tool {{ printf "npm:%s" . | quote }}
+{{ end }}
+exit 0
 {{- end }}
