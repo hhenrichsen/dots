@@ -13,6 +13,9 @@ based on the request, but the instruction helps.
 
 ## Reviewing
 
+Reviewing is part of the responsibility of the coordinator. If you are the
+implementer, leave the reviews and feedback to the coordinator.
+
 Review your work and plans before with a different model family before
 presenting it. `claude -p`, `opencode run` or `codex exec` catch many things.
 Do this when it's cheap in the planning phase, then review it once it's done.
@@ -29,12 +32,33 @@ In addition, if you are not the top model on that list, you can use a
 higher-level model as a reviewer. Do the thinking on your own, then present
 your plan and get a brief judgment from your larger sibling.
 
+### Failure Modes
+
+Invoking another agent is failure prone due to the input / output expectations
+of them. You have no idea how much text is going to end up in the response from
+the other model; `| tail` is not sufficient. An approach like this is
+recommended, piping the action log and output to a file:
+
+```
+timeout 60m [command] "<prompt>" >review.log 2>&1
+```
+
+On Windows, it may be necessary to run it without permission checks due to
+sandbox issues. Read the command help before doing this for the first time.
+
+Check in on the output after a minute or two, and cap them with a high timeout;
+usually more than an hour means they've hung. 20 minutes is very long in
+practice. The log is generally a good indicator of this, but if one is
+terminated, it can generally be resumed.
+
 ## Tooling
 
-WSL is on the system. It has more utilities than Windows has. If you're not
-running in a Linux-looking system, run things in WSL. Default to using your
-built-in tools (Edit, Search), but each of these tools is present and usable
-for the cases that demand them:
+If you're running Windows, WSL is on the system. If not in Windows, these
+should be installed by default. WSL has more utilities than Windows has. If
+you're not running in a Linux-looking system, run things in WSL. Default to
+using your built-in tools (Edit, Search), but each of these tools is present
+and usable for the cases that demand them:
+
 - fd
 - ffmpeg
 - fish
@@ -62,7 +86,9 @@ Check for and read relevant AGENTS.md when you're working in a codebase.
 
 Baseline the codebase before you start. Are tests passing? Are there format
 issues? If you can fix them cheaply before implementing, do so. Casts are
-usually a code smell, especially unsafe ones. 
+usually a code smell, especially unsafe ones. When designing, you must design
+for extensibility, reusability, readability, and maintainability. There are
+more guidelines on what this looks like below.
 
 Look for reuse before implementing. The best code is the code never written.
 The best refactor cuts more code than it writes. Find and prove the root cause
@@ -99,6 +125,21 @@ capturing the gotcha or functional requirement.
 Think of the code only in its finished state, not the steps that it took to get
 there. Review your own code for this, and ask other agents to review your code
 for this when you ask them for a review.
+
+## Proposing Changes
+
+You generally have read more of the code and have been working for a long time
+by the time you respond. You'll name things and make decisions during that
+process, especially when using agents. I am not always following along with
+you line-by-line, so verify that you're speaking in terms that we've both used;
+ASD-STE100 is useful for this with its definition demands.
+
+Especially when this is the case, you should take care when asking for input.
+Generally, the problem should be clearly explained, including the background
+and decisions that led there, what options are available, and the tradeoffs you
+forsee with them. Don't wait for me to send a follow-up message about this; if
+you need input, ask in the message that comes back to me and include the
+relevant information.
 
 ## Done means done
 
