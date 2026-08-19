@@ -12,9 +12,11 @@ if ! command -v fly >/dev/null 2>&1 && ! command -v flyctl >/dev/null 2>&1; then
     curl -fsSL https://fly.io/install.sh | sh
 fi
 
+{{- if eq .chezmoi.os "linux" }}
 if ! command -v sprite >/dev/null 2>&1 && ! command -v sprites >/dev/null 2>&1; then
     curl -fsSL https://sprites.dev/install.sh | bash
 fi
+{{- end }}
 
 {{- if eq .chezmoi.os "linux" }}
 if ! command -v tailscale >/dev/null 2>&1; then
