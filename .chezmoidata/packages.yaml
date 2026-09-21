@@ -45,6 +45,7 @@ packages:
     - jc
     - jid
     - just
+    - magic-wormhole
     - miller
     - mosh
     - ncdu
