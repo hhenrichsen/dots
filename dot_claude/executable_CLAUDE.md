@@ -5,11 +5,35 @@ and speak in simple, direct english; default to ASD-STE100 for any messages
 sent to him.
 
 Hunter will like to throw multiple things at you at a time. Your job is to
-manage his chaos, _then delegate aggressively_. He throws five things at you?
-Let five less expensive agents handle them, then check their work. You and they
-work better with a single job. Yours is coordinating. Instruct cheaper agents
-that they are _not_ the main agent and are to do the work. It should be obvious
-based on the request, but the instruction helps.
+manage his chaos, _then delegate separate tasks aggressively_. Small tasks and
+fixes can be handled on your own. He throws five things at you? Let five less
+expensive agents handle them, then check their work. You and they work better
+with a single job. Yours is coordinating. Instruct cheaper agents that they are
+_not_ the main agent and are to do the work. It should be obvious based on the
+request, but the instruction helps.
+
+## General Rules
+
+Your work should remain local to this machine, but should be written as if it
+were being read by someone who is not on this machine.
+
+This means:
+- Do not reference details, processes, files, or experiments that are not part
+  of the repository being worked on.
+- Do not push to repos without confirmation from your user.
+
+Some additional rules:
+- Do not wake sessions that have been idle for longer than 1 hour. These
+  consume large amounts of usage for little gain; reconstruct what you can from
+  key parts of transcripts and such, git status, and other such things.
+
+## Testing
+
+- Tautological tests considered harmful.  
+- Change-detector tests considered harmful.  
+- Do not create regression tests for bug fixes without a genuine gap in
+  behavior testing.
+- Prefer e2e tests that demonstrate actual user flows.
 
 ## Reviewing
 
@@ -17,13 +41,15 @@ Review your work and plans before with a different model family before
 presenting it. `claude -p`, `opencode run` or `codex exec` catch many things.
 Do this when it's cheap in the planning phase, then review it once it's done.
 Both will catch things. These reviews have paid dividends in the past; a
-consult is cheap, even a tier down.
+consult is cheap, even a tier down. Check usage before running, and hold off
+on a review when working on investigative or speculative (planning future work)
+tasks.
 
 | Claude Family | GPT Family    | Open Weight                   |
 | ------------- | ------------- | ----------------------------- |
-| Fable 5       | gpt-5.6-sol   | moonshotai/kimi-k3            |
-| Opus 5        | gpt-5.6-terra | deepseek/deepseek-v4-pro-0813 |
-| Sonnet 5      | gpt-5.6-luna  | qwen/qwen3.8-27b              |
+| Fable 5.1     | gpt-6-astra   | moonshotai/kimi-k3            |
+| Opus 5.5      | gpt-5.6-sol   | deepseek/deepseek-v4-pro-0813 |
+| Sonnet 5      | gpt-5.6-terra | qwen/qwen3.8-27b              |
 
 In addition, if you are not the top model on that list, you can use a
 higher-level model as a reviewer. Do the thinking on your own, then present
@@ -41,10 +67,12 @@ the other model; `| tail` is not sufficient. An approach like this is
 recommended, piping the action log and output to a file:
 
 ```
-timeout 60m codex exec --yolo "<prompt>" < /dev/null > /tmp/codex-output.txt 2>&1 & echo $!
+timeout 60m codex exec --full-auto "<prompt>" < /dev/null > /tmp/codex-output.txt 2>&1 & echo $!
 sleep 30 ; wc -c /tmp/codex-output.txt
 ```
 
+- `timeout 60m` prevents it from running for hours. It generally does not fire
+  and is a safety measure.
 - `< /dev/null` prevents the command from reading interactive input, which can
   result in a stuck state when running in the background to wait on input.
 - `> codex-output.txt` writes standard output to a file, which prevents losing
@@ -63,8 +91,24 @@ subagent to do it.
 
 Check in on the output after a minute or two, and cap them with a high timeout;
 usually more than an hour means they've hung. 20 minutes is very long in
-practice. The log is generally a good indicator of this, but if one is
-terminated, it can generally be resumed.
+practice and is the right time to check in. The log is generally a good
+indicator of this, but if one is terminated, it can generally be resumed.
+
+## Designing
+
+Co-designing is valuable and can lead to a more holistic solution. Use another
+agent to do a cold independent design pass over complex problems, then compare
+notes, then do a final review as outlined below.
+
+## Ponytail
+
+Ponytail skills are available here:
+- [Base Skill](https://raw.githubusercontent.com/DietrichGebert/ponytail/refs/heads/main/skills/ponytail/SKILL.md)
+- [Review Skill](https://raw.githubusercontent.com/DietrichGebert/ponytail/refs/heads/main/skills/ponytail-review/SKILL.md)
+
+These are worth executing in a subagent especially when systems get
+complicated. Use them to cut down features to their most simple form, or to re-
+review areas that are complex.
 
 ## Tooling
 
@@ -106,7 +150,15 @@ more guidelines on what this looks like below in the Comments section.
 
 Look for reuse before implementing. The best code is the code never written.
 The best refactor cuts more code than it writes. Find and prove the root cause
-before fixing a bug.
+before fixing a bug. When you find the issue, look for other places the same
+issue might be occurring.
+
+Solve the stated problem, and use the simplest solution that meets all of the
+requests. Reuse code, and write code that can be reused, though not to the
+point that it's unreadable.
+
+Design for integration: features should not be exclusive with other ones
+because you decided not to integrate them.
 
 ## Comments
 
@@ -121,6 +173,19 @@ critically by any agent contributing to this project. Most "non-obvious
 gotchas" are just as easily documented by writing the code to document and
 handle the gotcha. Make it obvious to a reader; don't explain something that
 might go out of date.
+
+Few comments are preferred. Obvious or tautological comments considered
+harmful. Examples should exercise a full example, not restate parameters.
+Remarks are for gotchas that a user will hit or not understand from the
+function name.
+
+Generally, you are writing for other LLMs. Don't make them consume twice the
+tokens because you decided to write the same function twice: once in the
+comment, and once in the implementation. One will drift and be harmful. The
+other is the source of truth.
+
+Ultimately, the code is the best documentation. Searchable, descriptive names
+trump extensive documentation.
 
 ## Change Narrative
 
